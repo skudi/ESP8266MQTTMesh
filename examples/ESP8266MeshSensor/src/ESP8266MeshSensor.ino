@@ -19,12 +19,25 @@
 
 /* Sonoff POW w/ DS18B20 attached to GPIO2(SDA) */
 #define GREEN_LED   15 //MTDO
+
+#ifndef STATUS_LED
+#define STATUS_LED GREEN_LED
+#endif
+
 #define RELAY       12 //MTDI
 #define BUTTON       0 //GPIO0
+
+#if HAS_DS18B20
+#ifndef DS18B20
 #define DS18B20      2 //GPIO2
+#endif
+#endif
+
+#if HAS_HLW8012
 #define HLW8012_SEL  5 //GPIO5
 #define HLW8012_CF  14 //MTMS
 #define HLW8012_CF1 13 //MTCK
+#endif
 
 /* See credentials.h.examle for contents of credentials.h */
 #include "credentials.h"
@@ -101,7 +114,7 @@ void callback(const char *topic, const char *msg);
 String build_json();
 
 void setup() {
-    pinMode(GREEN_LED, OUTPUT);
+    pinMode(STATUS_LED, OUTPUT);
     pinMode(RELAY,     OUTPUT);
     pinMode(BUTTON,     INPUT);
     Serial.begin(115200);
