@@ -51,13 +51,8 @@
     #define      FIRMWARE_ID        0x4452
 #endif
 
-#define      FIRMWARE_VER       "0.8.1"
-//const char*  networks[]       = NETWORK_LIST;
-const wifi_conn networks[] = {
-    WIFI_CONN("foo", NETWORK_PASSWORD, NULL, false),
-    WIFI_CONN("bar", NETWORK_PASSWORD, "XX:XX:XX:XX:XX:XX", true),
-    NULL
-};
+#define      FIRMWARE_VER       "0.8.2"
+const wifi_conn networks[]    = NETWORK_LIST;
 const char*  mesh_password    = MESH_PASSWORD;
 const char*  mqtt_server      = MQTT_SERVER;
 
@@ -141,7 +136,7 @@ void loop() {
     unsigned long now = millis();
 
 #if HAS_DS18B20
-    if (ds18b20.isConversionAvailable(ds18b20Address)) {
+    if (ds18b20.isConversionComplete()) {
         temperature = ds18b20.getTempF(ds18b20Address);
         ds18b20.requestTemperatures();
     }    
