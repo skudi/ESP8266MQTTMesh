@@ -65,12 +65,11 @@ size_t mesh_strlcat(char* dst, const char* src, size_t len)
 
 
 ESP8266MQTTMesh::ESP8266MQTTMesh(const wifi_conn *networks,
-                    const char *mqtt_server, int mqtt_port,
-                    const char *mqtt_username, const char *mqtt_password,
+                    const mqtt_conn *mqtt_servers,
                     const char *firmware_ver, int firmware_id,
                     const char *mesh_ssid, const char *_mesh_password, int mesh_port,
 #if ASYNC_TCP_SSL_ENABLED
-                    bool mqtt_secure, const uint8_t *mqtt_fingerprint, ssl_cert_t mesh_secure,
+                    ssl_cert_t mesh_secure,
 #endif
                     const char *inTopic, const char *outTopic
                     ) :
@@ -78,14 +77,9 @@ ESP8266MQTTMesh::ESP8266MQTTMesh(const wifi_conn *networks,
         firmware_ver(firmware_ver),
         networks(networks),
         mesh_ssid(mesh_ssid),
-        mqtt_server(mqtt_server),
-        mqtt_username(mqtt_username),
-        mqtt_password(mqtt_password),
-        mqtt_port(mqtt_port),
+        mqtt_servers(mqtt_servers),
         mesh_port(mesh_port),
 #if ASYNC_TCP_SSL_ENABLED
-        mqtt_secure(mqtt_secure),
-        mqtt_fingerprint(mqtt_fingerprint),
         mesh_secure(mesh_secure),
 #endif
         inTopic(inTopic),
@@ -202,16 +196,7 @@ void ESP8266MQTTMesh::begin() {
                                                                              { this->onMqttMessage(topic, payload, properties, len, index, total); });
     mqttClient.onPublish(    [this] (uint16_t packetId)                      { this->onMqttPublish(packetId); });
 
-    mqttClient.setServer(mqtt_server, mqtt_port);
-    if (mqtt_username || mqtt_password)
-        mqttClient.setCredentials(mqtt_username, mqtt_password);
-
-#if ASYNC_TCP_SSL_ENABLED
-    mqttClient.setSecure(mqtt_secure);
-    if (mqtt_fingerprint) {
-        mqttClient.addServerFingerprint(mqtt_fingerprint);
-    }
-#endif
+		configure_mqttClient();
     //mqttClient.setCallback([this] (char* topic, byte* payload, unsigned int length) { this->mqtt_callback(topic, payload, length); });
 
 
@@ -557,7 +542,7 @@ void ESP8266MQTTMesh::HandleMessages(const char *topic, const char *msg) {
 }
 
 void ESP8266MQTTMesh::connect_mqtt() {
-    dbgPrintln(EMMDBG_MQTT, "Attempting MQTT connection (" + String(mqtt_server) + ":" + String(mqtt_port) + ")...");
+    dbgPrintln(EMMDBG_MQTT, "Attempting MQTT connection (" + String(mqtt_servers[mqtt_idx].hostname) + ":" + String(mqtt_servers[mqtt_idx].port) + ")...");
     // Attempt to connect
     mqttClient.connect();
 }
@@ -988,6 +973,8 @@ void ESP8266MQTTMesh::onWifiConnect(const WiFiEventStationModeGotIP& event) {
         schedule.once(5000, checkConnectionEstablished_static, this);
         bufptr[0] = inbuffer[0];
     } else {
+        dbgPrintln(EMMDBG_WIFI, "my IP: ");
+				dbgPrintln(EMMDBG_WIFI, WiFi.localIP());
         dbgPrintln(EMMDBG_WIFI, "Connecting to mqtt");
         connect_mqtt();
     }
@@ -1066,6 +1053,11 @@ void ESP8266MQTTMesh::onMqttConnect(bool sessionPresent) {
 void ESP8266MQTTMesh::onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
     int r = (int8_t)reason;
     dbgPrintln(EMMDBG_MQTT, "Disconnected from MQTT: " + String(r));
+		mqtt_idx++;
+		if (mqtt_servers[mqtt_idx].hostname == NULL) {
+			mqtt_idx = 0;
+		}
+		configure_mqttClient();
 #if ASYNC_TCP_SSL_ENABLED
     if (reason == AsyncMqttClientDisconnectReason::TLS_BAD_FINGERPRINT) {
         dbgPrintln(EMMDBG_MQTT, "Bad MQTT server fingerprint.");
@@ -1251,3 +1243,17 @@ void ESP8266MQTTMesh::onData(AsyncClient* c, void* data, size_t len) { //TODO: c
     }
     dbgPrintln(EMMDBG_WIFI, "Could not find client");
 }
+
+void ESP8266MQTTMesh::configure_mqttClient() {
+    mqttClient.setServer(mqtt_servers[mqtt_idx].hostname, mqtt_servers[mqtt_idx].port);
+    if (mqtt_servers[mqtt_idx].username || mqtt_servers[mqtt_idx].password)
+        mqttClient.setCredentials(mqtt_servers[mqtt_idx].username, mqtt_servers[mqtt_idx].password);
+
+#if ASYNC_TCP_SSL_ENABLED
+    mqttClient.setSecure(mqtt_servers[mqtt_idx].secure);
+    if (mqtt_servers[mqtt_idx].fingerprint) {
+        mqttClient.addServerFingerprint(mqtt_servers[mqtt_idx].fingerprint);
+    }
+#endif
+}
+

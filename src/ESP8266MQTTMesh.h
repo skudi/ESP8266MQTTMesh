@@ -105,6 +105,24 @@ typedef struct {
 #define WIFI_CONN(ssid, password, bssid, hidden) \
     { ssid, password, bssid, hidden }
 
+typedef struct {
+    const char *hostname;
+    unsigned int port;
+		const char *username;
+		const char *password;
+#if ASYNC_TCP_SSL_ENABLED
+    bool secure;
+		const uint8_t *fingerprint;
+#endif
+} mqtt_conn;
+#if ASYNC_TCP_SSL_ENABLED
+#define MQTT_CONN(hostname) \
+    { hostname, 1883, NULL, NULL, false, NULL }
+#else
+#define MQTT_CONN(hostname) \
+    { hostname, 1883, NULL, NULL }
+#endif
+
 class ESP8266MQTTMesh {
 public:
     class Builder;
@@ -115,10 +133,8 @@ private:
 
     const char   *mesh_ssid;
     char         mesh_password[64];
-    const char   *mqtt_server;
-    const char   *mqtt_username;
-    const char   *mqtt_password;
-    const int    mqtt_port;
+    const mqtt_conn *mqtt_servers;
+		uint8_t mqtt_idx = 0;
     const int    mesh_port;
     uint32_t     mesh_bssid_key;
 
@@ -132,9 +148,7 @@ private:
     ota_info_t ota_info;
 #endif
 #if ASYNC_TCP_SSL_ENABLED
-    bool mqtt_secure;
     ssl_cert_t mesh_secure;
-    const uint8_t *mqtt_fingerprint;
 #endif
     AsyncServer     espServer;
     AsyncClient     *espClient[ESP8266_NUM_CLIENTS+1] = {0}; //TODO: test if this does what I hope it does!
@@ -235,14 +249,14 @@ private:
     void onAck(AsyncClient* c, size_t len, uint32_t time);
     void onTimeout(AsyncClient* c, uint32_t time);
     void onData(AsyncClient* c, void* data, size_t len);
+    void configure_mqttClient();
 
     ESP8266MQTTMesh(const wifi_conn *networks,
-                    const char *mqtt_server, int mqtt_port,
-                    const char *mqtt_username, const char *mqtt_password,
+                    const mqtt_conn *mqtt_servers,
                     const char *firmware_ver, int firmware_id,
                     const char *mesh_ssid, const char *mesh_password, int mesh_port,
 #if ASYNC_TCP_SSL_ENABLED
-                    bool mqtt_secure, const uint8_t *mqtt_fingerprint, ssl_cert_t mesh_secure,
+                    ssl_cert_t mesh_secure,
 #endif
                     const char *inTopic, const char *outTopic);
 public:

@@ -12,11 +12,8 @@
 #define      FIRMWARE_VER       "0.1"
 wifi_conn    networks[]       = NETWORK_LIST;
 const char*  mesh_password    = MESH_PASSWORD;
-const char*  mqtt_server      = MQTT_SERVER;
-const int    mqtt_port        = MQTT_PORT;
+const mqtt_conn mqtt_servers[]   = MQTT_SERVERS;
 #if ASYNC_TCP_SSL_ENABLED
-const uint8_t *mqtt_fingerprint = MQTT_FINGERPRINT;
-bool mqtt_secure = MQTT_SECURE;
   #if MESH_SECURE
   #include "ssl_cert.h"
   #endif
@@ -37,11 +34,10 @@ int cnt = 0;
 
 // Note: All of the '.set' options below are optional.  The default values can be
 // found in ESP8266MQTTMeshBuilder.h
-ESP8266MQTTMesh mesh = ESP8266MQTTMesh::Builder(networks, mqtt_server, mqtt_port)
+ESP8266MQTTMesh mesh = ESP8266MQTTMesh::Builder(networks, mqtt_servers)
                        .setVersion(FIRMWARE_VER, FIRMWARE_ID)
                        .setMeshPassword(mesh_password)
 #if ASYNC_TCP_SSL_ENABLED
-                       .setMqttSSL(mqtt_secure, mqtt_fingerprint)
 #if MESH_SECURE
                        .setMeshSSL(ssl_cert, ssl_cert_len, ssl_key, ssl_key_len, ssl_fingerprint)
 #endif //MESH_SECURE

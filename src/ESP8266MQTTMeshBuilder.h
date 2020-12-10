@@ -5,10 +5,7 @@ class ESP8266MQTTMesh::Builder {
 private:
     const wifi_conn *networks;
 
-    const char   *mqtt_server;
-    int          mqtt_port;
-    const char   *mqtt_username;
-    const char   *mqtt_password;
+    const mqtt_conn *mqtt_servers;
  
     const char   *mesh_ssid;
     const char   *mesh_password;
@@ -20,9 +17,9 @@ private:
     bool mqtt_secure;
     ssl_cert_t mesh_secure;
     const uint8_t *mqtt_fingerprint;
-    void fix_mqtt_port() { if (! mqtt_port) mqtt_port = mqtt_secure ? 8883 : 1883; };
+    //void fix_mqtt_port() { if (! mqtt_port) mqtt_port = mqtt_secure ? 8883 : 1883; };
 #else
-    void fix_mqtt_port() { if (! mqtt_port) mqtt_port = 1883; };
+    //void fix_mqtt_port() { if (! mqtt_port) mqtt_port = 1883; };
 #endif
 
     const char* inTopic;
@@ -30,13 +27,10 @@ private:
 
 public:
     Builder(const wifi_conn *networks,
-            const char   *mqtt_server,
+            const mqtt_conn *mqtt_servers,
             int          mqtt_port = 0):
        networks(networks),
-       mqtt_server(mqtt_server),
-       mqtt_port(mqtt_port),
-       mqtt_username(NULL),
-       mqtt_password(NULL),
+       mqtt_servers(mqtt_servers),
        mesh_ssid("esp8266_mqtt_mesh"),
        mesh_password("ESP8266MQTTMesh"),
        mesh_port(1884),
@@ -54,11 +48,6 @@ public:
     Builder& setVersion(const char *firmware_ver, int firmware_id) {
         this->firmware_id = firmware_id;
         this->firmware_ver = firmware_ver;
-        return *this;
-    }
-    Builder& setMqttAuth(const char *username, const char *password) {
-        this->mqtt_username = username;
-        this->mqtt_password = password;
         return *this;
     }
     Builder& setMeshSSID(const char *ssid) { this->mesh_ssid = ssid; return *this; }
@@ -87,14 +76,10 @@ public:
     }
 #endif
     ESP8266MQTTMesh build() {
-        fix_mqtt_port();
         return( ESP8266MQTTMesh(
             networks,
 
-            mqtt_server,
-            mqtt_port,
-            mqtt_username,
-            mqtt_password,
+            mqtt_servers,
 
             firmware_ver,
             firmware_id,
@@ -113,14 +98,10 @@ public:
             outTopic));
     }
     ESP8266MQTTMesh *buildptr() {
-        fix_mqtt_port();
         return( new ESP8266MQTTMesh(
             networks,
 
-            mqtt_server,
-            mqtt_port,
-            mqtt_username,
-            mqtt_password,
+            mqtt_servers,
 
             firmware_ver,
             firmware_id,

@@ -67,7 +67,7 @@
 #define      FIRMWARE_VER       "0.8.2"
 const wifi_conn networks[]    = NETWORK_LIST;
 const char*  mesh_password    = MESH_PASSWORD;
-const char*  mqtt_server      = MQTT_SERVER;
+const mqtt_conn mqtt_servers[]   = MQTT_SERVERS;
 
 #if HAS_DS18B20
 OneWire oneWire(DS18B20);
@@ -98,7 +98,7 @@ double hlw8012_getCurrent();
 unsigned int hlw8012_getVoltage();
 #endif
 
-ESP8266MQTTMesh mesh = ESP8266MQTTMesh::Builder(networks, mqtt_server)
+ESP8266MQTTMesh mesh = ESP8266MQTTMesh::Builder(networks, mqtt_servers)
                      .setVersion(FIRMWARE_VER, FIRMWARE_ID)
                      .setMeshPassword(mesh_password)
                      .build();
