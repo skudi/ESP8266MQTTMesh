@@ -113,6 +113,7 @@ void ESP8266MQTTMesh::setCallback(std::function<void(const char *topic, const ch
 }
 
 void ESP8266MQTTMesh::begin() {
+		SPIFFS.begin();
     int len = strlen(inTopic);
     if (len > 16) {
         dbgPrintln(EMMDBG_MSG, "Max inTopicLen == 16");
@@ -912,6 +913,8 @@ void ESP8266MQTTMesh::handle_ota(const char *cmd, const char *msg) {
         }
         dbgPrintln(EMMDBG_OTA, "Flashing");
         
+				SPIFFS.end();
+
         eboot_command ebcmd;
         ebcmd.action = ACTION_COPY_RAW;
         ebcmd.args[0] = freeSpaceStart;
