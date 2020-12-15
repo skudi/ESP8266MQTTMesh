@@ -219,7 +219,7 @@ void staticWiFiEventHandler(system_event_id_t event, system_event_info_t info)
 
 void ESP8266MQTTMesh::WiFiEventHandler(system_event_id_t event, system_event_info_t info)
 {
-    switch(event) {
+  switch(event) {
     case SYSTEM_EVENT_STA_GOT_IP:
     {
         struct WiFiEventStationModeGotIP e;
@@ -249,7 +249,10 @@ void ESP8266MQTTMesh::WiFiEventHandler(system_event_id_t event, system_event_inf
     case SYSTEM_EVENT_AP_STADISCONNECTED:
         this->onAPDisconnect(info.sta_disconnected);
         break;
-    }
+	  default:
+			//Unhandled TODO:
+			break;
+  }
 }
 
 void ESP8266MQTTMesh::connectWiFiEvents()
@@ -490,11 +493,13 @@ String ESP8266MQTTMesh::mac_str(uint8_t *bssid) {
     sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X", bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
     return String(mac);
 }
-const char *ESP8266MQTTMesh::build_mesh_ssid(char buf[32], uint8_t *mac) {
+
+#define BUFSIZE 32
+const char *ESP8266MQTTMesh::build_mesh_ssid(char buf[BUFSIZE], uint8_t *mac) {
     char chipid[8];
     sprintf(chipid, "_%02x%02x%02x", mac[3], mac[4], mac[5]);
-    strlcpy(buf, mesh_ssid, sizeof(buf)-7);
-    strlcat(buf, chipid, sizeof(buf));
+    strlcpy(buf, mesh_ssid, BUFSIZE-7);
+    strlcat(buf, chipid, BUFSIZE);
     return buf;
 }
 
@@ -620,7 +625,7 @@ void ESP8266MQTTMesh::send_connected_msg() {
     if(wasConnected){
         publish("info/reset_Reason", String("lost_Connection").c_str(), MSG_TYPE_RETAIN_QOS_0);
     }else{
-        publish("info/reset_Reason", String(ESP.getResetReason()).c_str(), MSG_TYPE_RETAIN_QOS_0);
+        publish("info/reset_Reason", String(GETRESETREASON).c_str(), MSG_TYPE_RETAIN_QOS_0);
     }
     delay(500);
     publish("info/MAC", String(WiFi.macAddress()).c_str(), MSG_TYPE_RETAIN_QOS_0);
@@ -767,7 +772,7 @@ void ESP8266MQTTMesh::get_fw_string(char *msg, int len, const char *prefix)
     if (strlen(prefix)) {
         strlcat(msg, " ", len);
     }
-    os_sprintf(id, "ChipID:%06X FirmwareID:%04X v%s IP:%s %s", _chipID, firmware_id, firmware_ver, WiFi.localIP().toString().c_str(), meshConnect ? "mesh" : "");
+    sprintf(id, "ChipID:%06X FirmwareID:%04X v%s IP:%s %s", _chipID, firmware_id, firmware_ver, WiFi.localIP().toString().c_str(), meshConnect ? "mesh" : "");
     strlcat(msg, id, len);
 }
 

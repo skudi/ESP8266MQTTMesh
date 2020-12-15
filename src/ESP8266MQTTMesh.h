@@ -17,26 +17,26 @@
 #include <Arduino.h>
 
 #ifdef ESP32
-//  #include <AsyncTCP.h>
-//  #include <ESP32Ticker.h>
-//  #define USE_WIFI_ONEVENT
-//  #include "WiFiCompat.h"
+  #include <AsyncTCP.h>
+  #include <ESP32Ticker.h>
+  #define USE_WIFI_ONEVENT
+  #include "WiFiCompat.h"
+	#include "SPIFFS.h"
+  #define _chipID ((unsigned long)ESP.getEfuseMac())
+	#include <rom/rtc.h>
+	#define GETRESETREASON rtc_get_reset_reason(0)
 #else
   #include <ESP8266WiFi.h>
   #include <ESPAsyncTCP.h>
   #include <Ticker.h>
+  #define _chipID ESP.getChipId()
+	#define GETRESETREASON ESP.getResetReason()
 #endif
 
 #include <AsyncMqttClient.h>
 #include <FS.h>
 #include <functional>
 //#include <string>
-
-#ifdef ESP32
-  #define _chipID ((unsigned long)ESP.getEfuseMac())
-#else
-  #define _chipID ESP.getChipId()
-#endif
 
 #define TOPIC_LEN 64
 

@@ -2,7 +2,7 @@
   "name": "ESP8266MQTTMesh",
   "keywords": "iot, home, automation, async, mqtt, client, esp8266, mesh, ota",
   "description": "An Arduino for ESP8266 self-assembling Mesh network built around the MQTT protocol supporting OTA",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "frameworks": "arduino",
   "platforms": ["espressif8266", "espressif32"],
   "authors":
@@ -18,13 +18,18 @@
   "dependencies": [
     {
       "name": "ESPAsyncTCP",
-      "version": "1.2.2",
+      "version": "^1.2.2",
   		"platforms": ["espressif8266", "espressif32"]
     },
     {
       "name": "AsyncMqttClient",
-      "version": "0.8.2",
+      "version": "^0.8.2",
   		"platforms": ["espressif8266", "espressif32"]
+    },
+    {
+      "name": "Ticker-esp32",
+      "version": "~1.1.0",
+  		"platforms": ["espressif32"]
     }
   ]
 }
