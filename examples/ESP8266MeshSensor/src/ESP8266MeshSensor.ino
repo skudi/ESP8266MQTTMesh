@@ -127,12 +127,12 @@ void setup() {
     ds18b20.setWaitForConversion(false);
     ds18b20.requestTemperatures();
 #endif
-Serial.println("HLW8012 start");
 #if HAS_HLW8012
+    Serial.println("HLW8012 start");
     hlw8012.begin(HLW8012_CF, HLW8012_CF1, HLW8012_SEL, HIGH, true);
     hlw8012.setResistors(HLW8012_CURRENT_R, HLW8012_VOLTAGE_R_UP, HLW8012_VOLTAGE_R_DOWN);
+    Serial.println("HLW8012 end");
 #endif
-Serial.println("HLW8012 end");
     //mesh.setup will initialize the filesystem
     if (SPIFFS.exists("/config")) {
         read_config();
