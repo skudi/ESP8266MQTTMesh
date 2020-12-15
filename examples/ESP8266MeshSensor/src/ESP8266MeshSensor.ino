@@ -150,7 +150,7 @@ void loop() {
 
 #if HAS_DS18B20
     if (ds18b20.isConversionComplete()) {
-        temperature = ds18b20.getTempF(ds18b20Address);
+        temperature = ds18b20.getTempC(ds18b20Address);
         ds18b20.requestTemperatures();
     }    
 #endif
