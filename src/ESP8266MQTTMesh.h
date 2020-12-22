@@ -22,14 +22,13 @@
   #define USE_WIFI_ONEVENT
   #include "WiFiCompat.h"
 	#include "SPIFFS.h"
-  #define _chipID ((unsigned long)ESP.getEfuseMac())
 	#include <rom/rtc.h>
 	#define GETRESETREASON rtc_get_reset_reason(0)
+  
 #else
   #include <ESP8266WiFi.h>
   #include <ESPAsyncTCP.h>
   #include <Ticker.h>
-  #define _chipID ESP.getChipId()
 	#define GETRESETREASON ESP.getResetReason()
 #endif
 
@@ -122,6 +121,8 @@ typedef struct {
 #define MQTT_CONN(hostname) \
     { hostname, 1883, NULL, NULL }
 #endif
+
+uint32_t getChipId();
 
 class ESP8266MQTTMesh {
 public:
@@ -259,6 +260,9 @@ private:
                     ssl_cert_t mesh_secure,
 #endif
                     const char *inTopic, const char *outTopic);
+    String ssid;
+    String password;
+
 public:
     void setCallback(std::function<void(const char *topic, const char *msg)> _callback);
     void setType(uint32_t type);
@@ -267,6 +271,9 @@ public:
     void publish_node(const char *subtopic, const char *msg, enum MSG_TYPE msgCmd = MSG_TYPE_NONE);
     bool connected();
     static bool keyValue(const char *data, char separator, char *key, int keylen, const char **value);
+		ap_t* getActiveAP();
+		String getActiveAPssid();
+		String getActiveAPpassword();
 #ifdef USE_WIFI_ONEVENT
     void WiFiEventHandler(system_event_id_t event, system_event_info_t info);
 #endif
