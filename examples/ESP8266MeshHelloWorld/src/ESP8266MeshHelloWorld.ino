@@ -3,8 +3,8 @@
 #include <FS.h>
 
 
-#ifndef LED_PIN
-  #define LED_PIN LED_BUILTIN
+#ifndef STATUS_LED
+  #define STATUS_LED LED_BUILTIN
 #endif
 
 
@@ -19,17 +19,10 @@ const mqtt_conn mqtt_servers[]   = MQTT_SERVERS;
   #endif
 #endif
 
-#ifdef ESP32
-String ID  = String((unsigned long)ESP.getEfuseMac());
-#else
-String ID  = String(ESP.getChipId());
-#endif
-
-
-
+String ID  = String(getChipId());
 
 unsigned long previousMillis = 0;
-const long interval = 5000;
+const long interval = 1000;
 int cnt = 0;
 
 // Note: All of the '.set' options below are optional.  The default values can be
@@ -49,32 +42,36 @@ void callback(const char *topic, const char *msg);
 
 
 void setup() {
-
     Serial.begin(115200);
-    delay(1000); //This is only here to make it easier to catch the startup messages.  It isn't required
     mesh.setCallback(callback);
     mesh.begin();
-    pinMode(LED_PIN, OUTPUT);
-
+    pinMode(STATUS_LED, OUTPUT);
+		Serial.println("setup end");
 }
 
 
 void loop() {
-
-
-    if (! mesh.connected())
-        return;
-
     unsigned long currentMillis = millis();
 
     if (currentMillis - previousMillis >= interval) {
-
-          String cntStr = String(cnt);
-          String msg = "hello from " + ID + " cnt: " + cntStr;
-          mesh.publish(ID.c_str(), msg.c_str());
-          previousMillis = currentMillis;
-          cnt++;
-
+			Serial.println(".");
+			if (mesh.connected()) {
+				String cntStr = String(cnt);
+				String msg = "hello from " + ID + " cnt: " + cntStr;
+				mesh.publish(ID.c_str(), msg.c_str());
+				cnt++;
+			}
+			if (!WiFi.isConnected()) {
+				ap_t* activeAP = mesh.getActiveAP();
+				if (activeAP != NULL) {
+					Serial.print("activeAP: ");
+					Serial.println(mesh.getActiveAPssid());
+#ifdef ESP32
+					WiFi.begin(mesh.getActiveAPssid().c_str(), mesh.getActiveAPpassword().c_str());
+#endif
+				}
+			}
+			previousMillis = currentMillis;
     }
 
 }
@@ -86,9 +83,9 @@ void callback(const char *topic, const char *msg) {
 
     if (0 == strcmp(topic, (const char*) ID.c_str())) {
       if(String(msg) == "0") {
-        digitalWrite(LED_PIN, HIGH);
+        digitalWrite(STATUS_LED, HIGH);
       }else{
-        digitalWrite(LED_PIN, LOW);
+        digitalWrite(STATUS_LED, LOW);
       }
     }
 }
