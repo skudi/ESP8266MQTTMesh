@@ -46,20 +46,6 @@ enum {
     #define IS_GATEWAY (1)
 #endif
 
-//#define EMMDBG_LEVEL (EMMDBG_WIFI | EMMDBG_MQTT | EMMDBG_OTA)
-#ifndef EMMDBG_LEVEL
-  #define EMMDBG_LEVEL EMMDBG_ALL_EXTRA
-#endif
-
-#define dbgPrint(lvl, msg)               \
-    if (((lvl) & (EMMDBG_LEVEL)) == (lvl)) \
-    Serial.print(msg);
-
-#define dbgPrintln(lvl, msg)               \
-    if (((lvl) & (EMMDBG_LEVEL)) == (lvl)) \
-    Serial.println(msg);
-    //Serial.println(String("[") + __FUNCTION__ + String("] ") + msg);
-
 size_t mesh_strlcat(char* dst, const char* src, size_t len)
 {
     size_t slen = strlen(dst);
@@ -150,12 +136,12 @@ void ESP8266MQTTMesh::begin() {
 #endif
     uint8_t mac[6];
     generate_mac(mac, getChipId());
-    char macstr[18];
-    sprintf(macstr,"%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    dbgPrint(EMMDBG_WIFI, "Changing MAC address to: ");
-    dbgPrint(EMMDBG_WIFI, macstr);
+#ifdef ESP32
+		//setup base MAC address before using it
+    esp_base_mac_addr_set(mac);
+    WiFi.mode(WIFI_AP_STA);
+#else
     WiFi.disconnect();
-
     // This is needed to ensure both wifi_set_macaddr() calls work
     WiFi.mode(WIFI_AP_STA);
     bool ok_ap = wifi_set_macaddr(SOFTAP_IF, const_cast<uint8_t *>(mac));
@@ -165,15 +151,14 @@ void ESP8266MQTTMesh::begin() {
         dbgPrintln(EMMDBG_MSG, "Failed to set MAC address");
         die();
     }
-    dbgPrintln(EMMDBG_MSG, "MAC: " + WiFi.macAddress());
-    dbgPrintln(EMMDBG_MSG, "SoftAPMAC: " + WiFi.softAPmacAddress());
-
-#ifndef ESP32
     // In the ESP8266 2.3.0 API, there seems to be a bug which prevents a node configured as
     // WIFI_AP_STA from openning a TCP connection to it's gateway if the gateway is also
     // in WIFI_AP_STA
     WiFi.mode(WIFI_STA);
 #endif
+
+    dbgPrintln(EMMDBG_MSG, "MAC: " + WiFi.macAddress());
+    dbgPrintln(EMMDBG_MSG, "SoftAPMAC: " + WiFi.softAPmacAddress());
 
     this->connectWiFiEvents();
 
@@ -406,8 +391,15 @@ bool ESP8266MQTTMesh::verify_bssid(uint8_t *bssid) {
 }
 
 bool ESP8266MQTTMesh::connected() {
-    //delay(0); // let the Interrupts execute
-    return wifiConnected() && ((meshConnect && espClient[0] && espClient[0]->connected() && p2pConnected) || mqttClient.connected());
+    delay(0); // let the Interrupts execute
+		dbgPrintln(EMMDBG_MSG_EXTRA, "connected: wifi status (" + String(WL_CONNECTED) +  "?): " + String(WiFi.status()));
+		dbgPrintln(EMMDBG_MSG_EXTRA, "connected: meshConnect: " + String(meshConnect));
+		dbgPrintln(EMMDBG_MSG_EXTRA, "connected: espClient[0]: " + String((uint32_t)espClient[0]));
+		if (espClient[0]) {
+			dbgPrintln(EMMDBG_MSG_EXTRA, "connected: espClient[0].connected: " + String(espClient[0]->connected()));
+		}
+		dbgPrintln(EMMDBG_MSG_EXTRA, "connected: p2pConnected: " + String(p2pConnected));
+    return WiFi.isConnected() && ((meshConnect && espClient[0] && espClient[0]->connected() && p2pConnected) || mqttClient.connected());
 }
 
 void ESP8266MQTTMesh::scan() {
@@ -703,7 +695,7 @@ void ESP8266MQTTMesh::setup_AP() {
     WiFi.softAPConfig(apIP, apGateway, apSubmask);
     char _mesh_ssid[32];
     uint8_t mac[6];
-		WiFi.softAPmacAddress(mac); //mac = softAP MAC
+		WiFi.softAPmacAddress(mac); //mac <= softAP MAC
     build_mesh_ssid(_mesh_ssid, mac);
     WiFi.softAP(_mesh_ssid, mesh_password, WiFi.channel(), 1);
     dbgPrintln(EMMDBG_WIFI, "Initialized AP as '" + String(_mesh_ssid) + "'  IP '" + apIP.toString() + "'");
@@ -1375,8 +1367,11 @@ String ESP8266MQTTMesh::getActiveAPpassword() {
 uint32_t getChipId() {
 	uint32_t chipId = 0;
 #ifdef ESP32
-	for(int i=0; i<17; i=i+8) {
-	  chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+	uint8_t mac[6];
+	if (esp_efuse_mac_get_default(mac) == ESP_OK) {
+	 	chipId = (mac[3] << 16) | (mac[4] << 8) | mac[5];
+	} else {
+		dbgPrintln(EMMDBG_MSG, "ERROR: esp_efuse_mac_get_default?!");           
 	}
 #else
 	chipId = ESP.getChipId();

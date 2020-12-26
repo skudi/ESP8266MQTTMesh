@@ -16,6 +16,38 @@
 
 #include <Arduino.h>
 
+#define EMMDBG_EXTRA         0x10000000
+#define EMMDBG_MSG           0x00000001
+#define EMMDBG_MSG_EXTRA     (EMMDBG_EXTRA | EMMDBG_MSG)
+#define EMMDBG_WIFI          0x00000002
+#define EMMDBG_WIFI_EXTRA    (EMMDBG_EXTRA | EMMDBG_WIFI)
+#define EMMDBG_MQTT          0x00000004
+#define EMMDBG_MQTT_EXTRA    (EMMDBG_EXTRA | EMMDBG_MQTT)
+#define EMMDBG_OTA           0x00000008
+#define EMMDBG_OTA_EXTRA     (EMMDBG_EXTRA | EMMDBG_OTA)
+#define EMMDBG_TIMING        0x00000010
+#define EMMDBG_TIMING_EXTRA  (EMMDBG_EXTRA | EMMDBG_TIMING)
+#define EMMDBG_FS            0x00000020
+#define EMMDBG_FS_EXTRA      (EMMDBG_EXTRA | EMMDBG_OTA)
+#define EMMDBG_ALL           0x8FFFFFFF
+#define EMMDBG_ALL_EXTRA     0xFFFFFFFF
+#define EMMDBG_NONE          0x00000000
+
+//#define EMMDBG_LEVEL (EMMDBG_WIFI | EMMDBG_MQTT | EMMDBG_OTA)
+#ifndef EMMDBG_LEVEL
+  #define EMMDBG_LEVEL EMMDBG_ALL_EXTRA
+#endif
+
+#define dbgPrint(lvl, msg)               \
+    if (((lvl) & (EMMDBG_LEVEL)) == (lvl)) \
+    Serial.print(msg);
+
+#define dbgPrintln(lvl, msg)               \
+    if (((lvl) & (EMMDBG_LEVEL)) == (lvl)) \
+    Serial.println(msg);
+    //Serial.println(String("[") + __FUNCTION__ + String("] ") + msg);
+
+
 #ifdef ESP32
   #include <AsyncTCP.h>
   #include <ESP32Ticker.h>
@@ -38,23 +70,6 @@
 //#include <string>
 
 #define TOPIC_LEN 64
-
-#define EMMDBG_EXTRA         0x10000000
-#define EMMDBG_MSG           0x00000001
-#define EMMDBG_MSG_EXTRA     (EMMDBG_EXTRA | EMMDBG_MSG)
-#define EMMDBG_WIFI          0x00000002
-#define EMMDBG_WIFI_EXTRA    (EMMDBG_EXTRA | EMMDBG_WIFI)
-#define EMMDBG_MQTT          0x00000004
-#define EMMDBG_MQTT_EXTRA    (EMMDBG_EXTRA | EMMDBG_MQTT)
-#define EMMDBG_OTA           0x00000008
-#define EMMDBG_OTA_EXTRA     (EMMDBG_EXTRA | EMMDBG_OTA)
-#define EMMDBG_TIMING        0x00000010
-#define EMMDBG_TIMING_EXTRA  (EMMDBG_EXTRA | EMMDBG_TIMING)
-#define EMMDBG_FS            0x00000020
-#define EMMDBG_FS_EXTRA      (EMMDBG_EXTRA | EMMDBG_OTA)
-#define EMMDBG_ALL           0x8FFFFFFF
-#define EMMDBG_ALL_EXTRA     0xFFFFFFFF
-#define EMMDBG_NONE          0x00000000
 
 #ifndef ESP8266_NUM_CLIENTS
   #define ESP8266_NUM_CLIENTS 4 //4 seems to be them maximal Ammount the esp8266 can handle

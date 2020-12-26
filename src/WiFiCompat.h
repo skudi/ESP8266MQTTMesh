@@ -11,9 +11,13 @@ typedef enum {
 } WIFI_INTERFACE;
 
 static bool wifi_set_macaddr(WIFI_INTERFACE if_index, uint8_t *macaddr) {
-    if (if_index == SOFTAP_IF) {
-         int ok = esp_base_mac_addr_set(macaddr);
-         return ok == ESP_OK;
+   if (if_index == SOFTAP_IF) {
+			char macstr[18];
+			sprintf(macstr,"%02X:%02X:%02X:%02X:%02X:%02X", macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4], macaddr[5]);
+			dbgPrint(EMMDBG_WIFI_EXTRA, "Changing SoftAP MAC address to: ");
+			dbgPrintln(EMMDBG_WIFI_EXTRA, macstr);
+      int ok = esp_base_mac_addr_set(macaddr);
+      return ok == ESP_OK;
     }
     return true;
 }

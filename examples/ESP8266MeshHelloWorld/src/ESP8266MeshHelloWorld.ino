@@ -42,6 +42,7 @@ void callback(const char *topic, const char *msg);
 
 
 void setup() {
+		delay(1000);
     Serial.begin(115200);
     mesh.setCallback(callback);
     mesh.begin();
