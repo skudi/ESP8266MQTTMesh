@@ -24,11 +24,16 @@
 #include <limits.h>
 
 #if HAS_OTA
+#if defined ESP32
+#include "Update.h"
+#else
+//esp8266
 extern "C" {
   #include "eboot_command.h"
   #include "user_interface.h"
   extern uint32_t _SPIFFS_start;
 }
+#endif
 #endif
 
 #if !defined(ESP32) && ! defined(pgm_read_with_offset) //Requires Arduino core 2.4.0

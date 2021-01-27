@@ -25,7 +25,7 @@
 #endif
 
 #define RELAY       12 //MTDI
-#define BUTTON       0 //GPIO0
+#define BUTTON       4 //GPIO0
 
 #if HAS_DS18B20
 #ifndef DS18B20
