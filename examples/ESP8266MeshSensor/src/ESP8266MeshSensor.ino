@@ -54,6 +54,7 @@
 
 #include <ESP8266MQTTMesh.h>
 
+#ifndef FIRMWARE_ID
 #if HAS_DS18B20 && HAS_HLW8012
     #define      FIRMWARE_ID        0x4455
 #elif HAS_DS18B20
@@ -62,6 +63,7 @@
     #define      FIRMWARE_ID        0x4453
 #else
     #define      FIRMWARE_ID        0x4452
+#endif
 #endif
 
 #define      FIRMWARE_VER       "0.8.2"
@@ -104,6 +106,7 @@ ESP8266MQTTMesh mesh = ESP8266MQTTMesh::Builder(networks, mqtt_servers)
                      .build();
 
 bool relayState = false;
+bool buttonState = false; //gpio IN button state
 bool stateChanged = false;
 int  heartbeat  = 60000;
 float temperature = 0.0;
@@ -117,6 +120,7 @@ void setup() {
     pinMode(STATUS_LED, OUTPUT);
     pinMode(RELAY,     OUTPUT);
     pinMode(BUTTON,     INPUT);
+		buttonState = digitalRead(BUTTON); //read initial switch state
     Serial.begin(115200);
     delay(5000);
     mesh.setCallback(callback);
@@ -142,7 +146,7 @@ Serial.println("config end");
 }
 
 void loop() {
-    static unsigned long pressed = 0;
+    static unsigned long prevButtonChange = 0;
     static unsigned long lastSend = 0;
     static bool needToSend = false;
 
@@ -193,15 +197,22 @@ void loop() {
         last_hlw8012_update = now;
     }
 #endif
+#ifdef BISTATEBUTTON
+    if (buttonState != digitalRead(BUTTON))  {
+#else
     if (! digitalRead(BUTTON))  {
-        if(pressed == 0) {
+#endif
+				//debounce delay
+        if(prevButtonChange == 0) {
+						//toggle relay state
             relayState = ! relayState;
             digitalWrite(RELAY, relayState);
             stateChanged = true;
+						buttonState = digitalRead(BUTTON);
         }
-        pressed = now;
-    } else if (pressed && now - pressed > 100) {
-        pressed = 0;
+        prevButtonChange = now;
+    } else if (prevButtonChange && now - prevButtonChange > 100) {
+        prevButtonChange = 0;
     }
     if (stateChanged) {
         save_config();
