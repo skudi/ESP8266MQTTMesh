@@ -24,8 +24,17 @@
 #define STATUS_LED GREEN_LED
 #endif
 
+#ifndef RELAY
 #define RELAY       12 //MTDI
+#endif
+
+#ifndef RELAYON
+#define RELAYON true
+#endif
+
+#ifndef BUTTON
 #define BUTTON       4 //GPIO0
+#endif
 
 #if HAS_DS18B20
 #ifndef DS18B20
@@ -37,6 +46,10 @@
 #define HLW8012_SEL  5 //GPIO5
 #define HLW8012_CF  14 //MTMS
 #define HLW8012_CF1 13 //MTCK
+#endif
+
+#ifndef MINHEARBEAT
+#define MINHEARBEAT 2000
 #endif
 
 /* See credentials.h.examle for contents of credentials.h */
@@ -143,14 +156,23 @@ void setup() {
     }
 Serial.println("config end");
     digitalWrite(RELAY, relayState);
+		digitalWrite(STATUS_LED, relayState);
 }
+
 
 void loop() {
     static unsigned long prevButtonChange = 0;
     static unsigned long lastSend = 0;
     static bool needToSend = false;
+		static unsigned long blinkOffTime = 0;
 
     unsigned long now = millis();
+
+		if ( blinkOffTime && (now > blinkOffTime) ) {
+			//blink end
+			digitalWrite(STATUS_LED, relayState);
+			blinkOffTime = 0;
+		}
 
 #if HAS_DS18B20
     if (ds18b20.isConversionComplete()) {
@@ -197,6 +219,21 @@ void loop() {
         last_hlw8012_update = now;
     }
 #endif
+
+#ifdef FREEZER
+	if ( temperature != -127.0 ) {
+		if ( temperature > TEMPMAX && relayState != RELAYON ) {
+			relayState = RELAYON;
+			stateChanged = true;
+		} else if ( temperature < TEMPMIN && relayState == RELAYON ) {
+			relayState = !RELAYON;
+			stateChanged = true;
+		} else {
+			stateChanged = false;
+		}
+	}
+#endif
+
 #ifdef BISTATEBUTTON
     if (buttonState != digitalRead(BUTTON))  {
 #else
@@ -205,16 +242,17 @@ void loop() {
 				//debounce delay
         if(prevButtonChange == 0) {
 						//toggle relay state
-            relayState = ! relayState;
-            digitalWrite(RELAY, relayState);
-            stateChanged = true;
 						buttonState = digitalRead(BUTTON);
+            relayState = !relayState;
+            stateChanged = true;
         }
         prevButtonChange = now;
-    } else if (prevButtonChange && now - prevButtonChange > 100) {
+    } else if (prevButtonChange && now - prevButtonChange > 50) {
         prevButtonChange = 0;
     }
     if (stateChanged) {
+        digitalWrite(RELAY, relayState);
+        digitalWrite(STATUS_LED, relayState);
         save_config();
         needToSend = true;
         stateChanged = false;
@@ -235,13 +273,15 @@ void loop() {
 #endif
         mesh.publish("status", data.c_str());
         needToSend = false;
+				digitalWrite(STATUS_LED, !relayState);
+				blinkOffTime = now + 100;
     }   
 }
 
 void callback(const char *topic, const char *msg) {
     if (0 == strcmp(topic, "heartbeat")) {
        unsigned int hb = strtoul(msg, NULL, 10);
-       if (hb > 10000) {
+       if (hb > MINHEARBEAT) {
            heartbeat = hb;
            save_config();
        }
@@ -288,7 +328,8 @@ void callback(const char *topic, const char *msg) {
 
 String build_json() {
     String msg = "{";
-    msg += " \"relay\":\"" + String(relayState ? "ON" : "OFF") + "\"";
+    msg += " \"relay\":\"" + String(relayState == RELAYON ? "ON" : "OFF") + "\"";
+    msg += ", \"button\":\"" + String(digitalRead(BUTTON) ? "ON" : "OFF") + "\"";
 #if HAS_DS18B20
         msg += ", \"temp\":" + String(temperature, 2);
 #endif
