@@ -12,4 +12,7 @@
 #else
     #define HAS_HLW8012 0
 #endif
+
+#define RELAYSDEF { RELAYSPEC(12, 0, 0) }
+
 #endif //_CAPABILITIES_H_

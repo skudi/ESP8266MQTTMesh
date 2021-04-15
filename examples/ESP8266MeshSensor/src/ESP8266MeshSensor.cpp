@@ -16,20 +16,13 @@
  *
  *  HLW8012 code Copyright (C) 2016-2017 by Xose Pérez <xose dot perez at gmail dot com>
  */
+#include <Arduino.h>
 
 /* Sonoff POW w/ DS18B20 attached to GPIO2(SDA) */
 #define GREEN_LED   15 //MTDO
 
 #ifndef STATUS_LED
 #define STATUS_LED GREEN_LED
-#endif
-
-#ifndef RELAY
-#define RELAY       12 //MTDI
-#endif
-
-#ifndef RELAYON
-#define RELAYON true
 #endif
 
 #ifndef BUTTON
@@ -51,6 +44,13 @@
 #ifndef MINHEARBEAT
 #define MINHEARBEAT 2000
 #endif
+
+struct RelayStruct {
+	uint8_t pin; // pin number for digitalWrite()
+    uint8_t activeLow:1; // 1 when relay is closed by LOW state (0V)
+    uint8_t state:1;     // desired relay state (pin = state xor activeLow) 
+};
+#define RELAYSPEC(pin, activeLow, state) {pin, activeLow, state}
 
 /* See credentials.h.examle for contents of credentials.h */
 #include "credentials.h"
@@ -118,7 +118,9 @@ ESP8266MQTTMesh mesh = ESP8266MQTTMesh::Builder(networks, mqtt_servers)
                      .setMeshPassword(mesh_password)
                      .build();
 
-bool relayState = false;
+
+struct RelayStruct relays[] = RELAYSDEF;
+
 bool buttonState = false; //gpio IN button state
 bool stateChanged = false;
 int  heartbeat  = 60000;
@@ -131,9 +133,11 @@ String build_json();
 
 void setup() {
     pinMode(STATUS_LED, OUTPUT);
-    pinMode(RELAY,     OUTPUT);
-    pinMode(BUTTON,     INPUT);
-		buttonState = digitalRead(BUTTON); //read initial switch state
+    for (uint8_t i=0; i < (sizeof relays)/(sizeof (struct RelayStruct)); i++){
+        pinMode(relays[i].pin, OUTPUT);
+    }
+    pinMode(BUTTON, INPUT);
+	buttonState = digitalRead(BUTTON); //read initial switch state
     Serial.begin(115200);
     delay(5000);
     mesh.setCallback(callback);
@@ -154,9 +158,11 @@ void setup() {
     if (SPIFFS.exists("/config")) {
         read_config();
     }
-Serial.println("config end");
-    digitalWrite(RELAY, relayState);
-		digitalWrite(STATUS_LED, relayState);
+    Serial.println("config end");
+    for (uint8_t i=0; i < (sizeof relays)/(sizeof (struct RelayStruct)); i++){
+        digitalWrite(relays[i].pin, relays[i].state ^ relays[i].activeLow);
+    }
+	digitalWrite(STATUS_LED, !relays[0].state);
 }
 
 
@@ -170,7 +176,7 @@ void loop() {
 
 		if ( blinkOffTime && (now > blinkOffTime) ) {
 			//blink end
-			digitalWrite(STATUS_LED, relayState);
+			digitalWrite(STATUS_LED, !relays[0].state);
 			blinkOffTime = 0;
 		}
 
@@ -222,11 +228,11 @@ void loop() {
 
 #ifdef FREEZER
 	if ( temperature != -127.0 ) {
-		if ( temperature > TEMPMAX && relayState != RELAYON ) {
-			relayState = RELAYON;
+		if ( (temperature > TEMPMAX) && (relays[0].state == 0) ) {
+			relays[0].state = 1;
 			stateChanged = true;
-		} else if ( temperature < TEMPMIN && relayState == RELAYON ) {
-			relayState = !RELAYON;
+		} else if ( (temperature < TEMPMIN) && (relays[0].state == 1) ) {
+			relays[0].state = 0;
 			stateChanged = true;
 		} else {
 			stateChanged = false;
@@ -239,11 +245,11 @@ void loop() {
 #else
     if (! digitalRead(BUTTON))  {
 #endif
-				//debounce delay
+	    //debounce delay
         if(prevButtonChange == 0) {
-						//toggle relay state
-						buttonState = digitalRead(BUTTON);
-            relayState = !relayState;
+		    //toggle relay state
+		    buttonState = digitalRead(BUTTON);
+            relays[0].state = !relays[0].state;
             stateChanged = true;
         }
         prevButtonChange = now;
@@ -251,8 +257,8 @@ void loop() {
         prevButtonChange = 0;
     }
     if (stateChanged) {
-        digitalWrite(RELAY, relayState);
-        digitalWrite(STATUS_LED, relayState);
+        digitalWrite(relays[0].pin, relays[0].state ^ relays[0].activeLow);
+        digitalWrite(STATUS_LED, !relays[0].state);
         save_config();
         needToSend = true;
         stateChanged = false;
@@ -273,8 +279,8 @@ void loop() {
 #endif
         mesh.publish("status", data.c_str());
         needToSend = false;
-				digitalWrite(STATUS_LED, !relayState);
-				blinkOffTime = now + 100;
+		digitalWrite(STATUS_LED, relays[0].state); //toggle LED for blinkOffTime
+		blinkOffTime = now + 100;
     }   
 }
 
@@ -286,11 +292,18 @@ void callback(const char *topic, const char *msg) {
            save_config();
        }
     }
-    else if (0 == strcmp(topic, "state")) {
+    else if (strstr(topic, "relay") == topic) {
+        //accept "relay" - relay0
+        // and "relay/#" - relay#
+        char * relayIdxTxt = strrchr(topic, '/' );
+        uint8_t relayIdx = 0;
+        if (relayIdxTxt != NULL) {
+            relayIdx = atoi(relayIdxTxt);
+        }
        bool nextState = strtoul(msg, NULL, 10) ? true : false;
-       if (relayState != nextState) {
-           relayState = nextState;
-           digitalWrite(RELAY, relayState);
+       if (relays[relayIdx].state != nextState) {
+           relays[relayIdx].state = nextState;
+           digitalWrite(relays[relayIdx].pin, relays[relayIdx].state ^ relays[relayIdx].activeLow);
            stateChanged = true;
        }
     }
@@ -328,10 +341,12 @@ void callback(const char *topic, const char *msg) {
 
 String build_json() {
     String msg = "{";
-    msg += " \"relay\":\"" + String(relayState == RELAYON ? "ON" : "OFF") + "\"";
-    msg += ", \"button\":\"" + String(digitalRead(BUTTON) ? "ON" : "OFF") + "\"";
+    msg += "\"button0\":\"" + String(digitalRead(BUTTON) ? "ON" : "OFF") + "\"";
+    for (uint8_t i=0; i < (sizeof relays)/(sizeof (struct RelayStruct)); i++) {
+        msg += ", \"relay" + String(i) + "\":\"" + (relays[i].state ? "ON" : "OFF") + "\"";
+    }
 #if HAS_DS18B20
-        msg += ", \"temp\":" + String(temperature, 2);
+        msg += ", \"temp0\":" + String(temperature, 2);
 #endif
 #if HAS_HLW8012
         double count = power_sample_count ? power_sample_count : 1;
@@ -367,8 +382,13 @@ void read_config() {
         if (! ESP8266MQTTMesh::keyValue(s, '=', key, sizeof(key), &value)) {
             continue;
         }
-        if (0 == strcmp(key, "RELAY")) {
-            relayState = value[0] == '0' ? 0 : 1;
+        if (strstr(key, "RELAY") == key) {
+            // RELAY or RELAY#
+            uint8_t relayIdx = 0;
+            if (strlen(key) > strlen("RELAY")) {
+                relayIdx = atoi(key + strlen("RELAY"));
+            }
+            relays[relayIdx].state = value[0] == '0' ? 0 : 1;
         }
         else if (0 == strcmp(key, "HEARTBEAT")) {
             heartbeat = atoi(value);
@@ -403,7 +423,9 @@ void save_config() {
         Serial.println("Failed to write config");
         return;
     }
-    f.print("RELAY=" + String(relayState ? "1" : "0") + "\n");
+    for (uint8_t i=0; i < (sizeof relays)/(sizeof (struct RelayStruct)); i++) {
+        f.print("RELAY" + String(i) + "=" + (relays[i].state ? "1" : "0") + "\n");
+    }
     f.print("HEARTBEAT=" + String(heartbeat) + "\n");
 #if HAS_HLW8012
     f.print("hlw8012PowerMult="   + String(hlw8012.getPowerMultiplier()));
