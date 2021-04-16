@@ -13,6 +13,11 @@
     #define HAS_HLW8012 0
 #endif
 
-#define RELAYSDEF { RELAYSPEC(12, 0, 0) }
+/*
+    uint8_t pin; // pin number for digitalWrite()
+    uint8_t activeLow:1; // 1 when relay is closed by LOW state (0V)
+    uint8_t state:1;     // desired relay state (pin = state xor activeLow) 
+*/
+#define RELAYSDEF { RELAYSPEC(RELAYGPIO, !RELAYONVAL, 0) }
 
 #endif //_CAPABILITIES_H_
