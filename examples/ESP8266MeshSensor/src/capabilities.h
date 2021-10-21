@@ -18,6 +18,16 @@
     uint8_t activeLow:1; // 1 when relay is closed by LOW state (0V)
     uint8_t state:1;     // desired relay state (pin = state xor activeLow) 
 */
-#define RELAYSDEF { RELAYSPEC(RELAYGPIO, !RELAYONVAL, 0) }
+#ifdef RELAY0GPIO
+#define RELAYSDEF { \
+  RELAYSPEC(RELAY0GPIO, !RELAY0ONVAL, 0), \
+  RELAYSPEC(RELAY1GPIO, !RELAY1ONVAL, 0), \
+  RELAYSPEC(RELAY2GPIO, !RELAY2ONVAL, 0) \
+  }
+#else
+#define RELAYSDEF { \
+  RELAYSPEC(RELAYGPIO, !RELAYONVAL, 0) \
+  }
+#endif
 
 #endif //_CAPABILITIES_H_

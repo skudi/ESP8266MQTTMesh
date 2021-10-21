@@ -25,10 +25,6 @@
 #define STATUS_LED GREEN_LED
 #endif
 
-#ifndef BUTTON
-#define BUTTON       4 //GPIO0
-#endif
-
 #if HAS_DS18B20
 #ifndef DS18B20
 #define DS18B20      2 //GPIO2
@@ -120,8 +116,11 @@ ESP8266MQTTMesh mesh = ESP8266MQTTMesh::Builder(networks, mqtt_servers)
 
 
 struct RelayStruct relays[] = RELAYSDEF;
+#define RELAYNUM ((sizeof relays)/(sizeof (struct RelayStruct)))
 
+#ifdef BUTTON
 bool buttonState = false; //gpio IN button state
+#endif
 bool stateChanged = false;
 int  heartbeat  = 60000;
 float temperature = 0.0;
@@ -133,13 +132,14 @@ String build_json();
 
 void setup() {
     pinMode(STATUS_LED, OUTPUT);
-    for (uint8_t i=0; i < (sizeof relays)/(sizeof (struct RelayStruct)); i++){
+    for (uint8_t i=0; i < RELAYNUM; i++){
         pinMode(relays[i].pin, OUTPUT);
     }
+#ifdef BUTTON
     pinMode(BUTTON, INPUT);
 	buttonState = digitalRead(BUTTON); //read initial switch state
+#endif
     Serial.begin(115200);
-    delay(5000);
     mesh.setCallback(callback);
     mesh.begin();
 #if HAS_DS18B20
@@ -159,7 +159,7 @@ void setup() {
         read_config();
     }
     Serial.println("config end");
-    for (uint8_t i=0; i < (sizeof relays)/(sizeof (struct RelayStruct)); i++){
+    for (uint8_t i=0; i < RELAYNUM; i++){
         digitalWrite(relays[i].pin, relays[i].state ^ relays[i].activeLow);
     }
 	digitalWrite(STATUS_LED, !relays[0].state);
@@ -240,6 +240,7 @@ void loop() {
 	}
 #endif
 
+#ifdef BUTTON
 #ifdef BISTATEBUTTON
     if (buttonState != digitalRead(BUTTON))  {
 #else
@@ -262,7 +263,15 @@ void loop() {
         save_config();
         needToSend = true;
         stateChanged = false;
-    } else if (now - lastSend > heartbeat) {
+    }
+#else
+    if (stateChanged) {
+        save_config();
+        stateChanged = false;
+    }
+#endif
+
+    if (now - lastSend > heartbeat) {
         needToSend = true;
     }
     if (! mesh.connected()) {
@@ -291,14 +300,16 @@ void callback(const char *topic, const char *msg) {
            heartbeat = hb;
            save_config();
        }
-    }
-    else if (strstr(topic, "relay") == topic) {
+    } else if (strstr(topic, "relay") == topic) {
         //accept "relay" - relay0
         // and "relay/#" - relay#
         char * relayIdxTxt = strrchr(topic, '/' );
         uint8_t relayIdx = 0;
         if (relayIdxTxt != NULL) {
-            relayIdx = atoi(relayIdxTxt);
+            relayIdx = atoi(relayIdxTxt+1);
+        }
+        if (relayIdx >= RELAYNUM) {
+            relayIdx = 0;
         }
        bool nextState = strtoul(msg, NULL, 10) ? true : false;
        if (relays[relayIdx].state != nextState) {
@@ -306,6 +317,8 @@ void callback(const char *topic, const char *msg) {
            digitalWrite(relays[relayIdx].pin, relays[relayIdx].state ^ relays[relayIdx].activeLow);
            stateChanged = true;
        }
+    } else if (strstr(topic, "config/read") == topic) {
+        read_config();
     }
 #if HAS_HLW8012
     else if (0 == strcmp(topic, "expectedpower")) {
@@ -340,11 +353,18 @@ void callback(const char *topic, const char *msg) {
 }
 
 String build_json() {
-    String msg = "{";
-    msg += "\"button0\":\"" + String(digitalRead(BUTTON) ? "ON" : "OFF") + "\"";
-    for (uint8_t i=0; i < (sizeof relays)/(sizeof (struct RelayStruct)); i++) {
-        msg += ", \"relay" + String(i) + "\":\"" + (relays[i].state ? "ON" : "OFF") + "\"";
+    String msg = "{ \"v\":\"1\"";
+    #ifdef BUTTON
+    msg += ", \"buttons\":{";
+    msg += "\"0\":\"" + String(digitalRead(BUTTON) ? "1" : "0") + "\"";
+    msg += "}";
+    #endif
+    msg += ", \"relays\":{";
+    for (uint8_t i=0; i < RELAYNUM; i++) {
+        if (i>0) { msg+= ",";}
+        msg += "\"" + String(i) + "\":\"" + (relays[i].state ? "1" : "0") + "\"";
     }
+    msg += "}";
 #if HAS_DS18B20
         msg += ", \"temp0\":" + String(temperature, 2);
 #endif
@@ -379,6 +399,9 @@ void read_config() {
         char key[32];
         const char *value;
         s[f.readBytesUntil('\n', s, sizeof(s)-1)] = 0;
+        if (mesh.connected()) {
+            mesh.publish("config", s);
+        }
         if (! ESP8266MQTTMesh::keyValue(s, '=', key, sizeof(key), &value)) {
             continue;
         }
@@ -423,7 +446,7 @@ void save_config() {
         Serial.println("Failed to write config");
         return;
     }
-    for (uint8_t i=0; i < (sizeof relays)/(sizeof (struct RelayStruct)); i++) {
+    for (uint8_t i=0; i < RELAYNUM; i++) {
         f.print("RELAY" + String(i) + "=" + (relays[i].state ? "1" : "0") + "\n");
     }
     f.print("HEARTBEAT=" + String(heartbeat) + "\n");
