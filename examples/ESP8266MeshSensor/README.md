@@ -25,3 +25,7 @@ The collowing configurations are needed before compiling:
 | \<prefix>/expectedvoltage | \<number>    | Calculate HLW8012 calibration based on current voltage          |
 | \<prefix>/expectedcurrent | \<number>    | Calculate HLW8012 calibration based on current current          |
 | \<prefix>/resetpower      | \<number>    | Reset all of the HLW8012 calibration values                     |
+
+## config
+ALIAS=<mqtt topic alias>
+RELAY<n>=gpio#,activeState,defaultValue
