@@ -63,18 +63,6 @@ struct RelayStruct {
 
 #include <ESP8266MQTTMesh.h>
 
-#ifndef FIRMWARE_ID
-#if HAS_DS18B20 && HAS_HLW8012
-    #define      FIRMWARE_ID        0x4455
-#elif HAS_DS18B20
-    #define      FIRMWARE_ID        0x4454
-#elif HAS_HLW8012
-    #define      FIRMWARE_ID        0x4453
-#else
-    #define      FIRMWARE_ID        0x4452
-#endif
-#endif
-
 #define      FIRMWARE_VER       "0.8.2"
 const wifi_conn networks[]    = NETWORK_LIST;
 const char*  mesh_password    = MESH_PASSWORD;
@@ -137,7 +125,7 @@ void setup() {
     }
 #ifdef BUTTON
     pinMode(BUTTON, INPUT);
-	buttonState = digitalRead(BUTTON); //read initial switch state
+    buttonState = digitalRead(BUTTON); //read initial switch state
 #endif
     Serial.begin(115200);
     mesh.setCallback(callback);
