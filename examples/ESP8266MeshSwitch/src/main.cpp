@@ -29,6 +29,13 @@
 #define MINHEARBEAT 2000
 #endif
 
+#define BUTTONDELAYMS 50
+
+typedef enum {
+	ONOFF,
+	TOGGLE
+} ButtonMode_t;
+
 struct RelayStruct {
 	uint8_t pin; // pin number for digitalWrite()
     uint8_t activeLow:1; // 1 when relay is closed by LOW state (0V)
@@ -57,8 +64,10 @@ ESP8266MQTTMesh mesh = ESP8266MQTTMesh::Builder(networks, mqtt_servers)
 struct RelayStruct relays[] = RELAYSDEF;
 #define RELAYNUM ((sizeof relays)/(sizeof (struct RelayStruct)))
 
-bool buttonState = false; //gpio IN button state
-bool stateChanged = false;
+ButtonMode_t buttonMode = BUTTON0_MODE;
+volatile bool buttonState = false; //gpio IN button state
+volatile bool newButtonState = false; //gpio IN button state
+volatile bool stateChanged = false;
 int  heartbeat  = 60000;
 float temperature = 0.0;
 
@@ -93,7 +102,9 @@ void loop() {
     static unsigned long prevButtonChange = 0;
     static unsigned long lastSend = 0;
     static bool needToSend = false;
-		static unsigned long blinkOffTime = 0;
+    static unsigned long blinkOffTime = 0;
+    uint8_t newRelayState;
+    stateChanged = false;
 
     unsigned long now = millis();
 
@@ -103,20 +114,28 @@ void loop() {
 			blinkOffTime = 0;
 		}
 
-#ifdef BISTATEBUTTON
-    if (buttonState != digitalRead(BUTTON))  {
-#else
-    if (! digitalRead(BUTTON))  {
-#endif
-	    //debounce delay
-        if(prevButtonChange == 0) {
+	  //debounce delay - ignore too fast changes
+    if(prevButtonChange == 0) {
+		//act only if button changed state
+		newButtonState = digitalRead(BUTTON);
+    	if (buttonState != newButtonState)  {
+            prevButtonChange = now;
+			switch (buttonMode) {
+				case ONOFF:
+		 		newRelayState = newButtonState;
+					;;
+				case TOGGLE:
+        		newRelayState = !relays[0].state;
+					;;
+			}
+			//remember button state for next change
+		   	buttonState = newButtonState;
 		    //toggle relay state
-		    buttonState = digitalRead(BUTTON);
-            relays[0].state = !relays[0].state;
-            stateChanged = true;
+            stateChanged = relays[0].state != newRelayState;
+            relays[0].state = newRelayState;
         }
-        prevButtonChange = now;
-    } else if (prevButtonChange && now - prevButtonChange > 50) {
+    } else if (prevButtonChange && (now - prevButtonChange) > BUTTONDELAYMS) {
+		//clear debunce flag if BUTTONDELAYMS passed
         prevButtonChange = 0;
     }
     if (stateChanged) {
