@@ -97,7 +97,7 @@ ESP8266MQTTMesh::ESP8266MQTTMesh(const wifi_conn *networks,
 #if HAS_OTA
     uint32_t usedSize = ESP.getSketchSize();
     // round one sector up
-    freeSpaceStart = (usedSize + FLASH_SECTOR_SIZE - 1) & (~(FLASH_SECTOR_SIZE - 1));
+    freeSpaceStart = (usedSize + SPI_FLASH_SEC_SIZE - 1) & (~(SPI_FLASH_SEC_SIZE - 1));
     //freeSpaceEnd = (uint32_t)&_SPIFFS_start - 0x40200000;
     freeSpaceEnd = ESP.getFreeSketchSpace() + freeSpaceStart;
 #endif
@@ -311,22 +311,22 @@ void ESP8266MQTTMesh::WiFiEventHandler(WiFiEvent_t event, WiFiEventInfo_t info)
     case SYSTEM_EVENT_STA_DISCONNECTED:
     {
         struct WiFiEventStationModeDisconnected e;
-        e.ssid.reserve(info.disconnected.ssid_len+1);
-        for(int i = 0; i < info.disconnected.ssid_len; i++) {
-            e.ssid += (char)info.disconnected.ssid[i];
+        e.ssid.reserve(info.wifi_sta_disconnected.ssid_len+1);
+        for(int i = 0; i < info.wifi_sta_disconnected.ssid_len; i++) {
+            e.ssid += (char)info.wifi_sta_disconnected.ssid[i];
         }
-        memcpy(e.bssid, info.disconnected.bssid, 6);
-        e.reason = info.disconnected.reason;
+        memcpy(e.bssid, info.wifi_sta_disconnected.bssid, 6);
+        e.reason = info.wifi_sta_disconnected.reason;
         this->onWifiDisconnect(e);
         break;
     }
     case SYSTEM_EVENT_AP_STACONNECTED:
     {
-        this->onAPConnect(info.sta_connected);
+        this->onAPConnect(info.wifi_sta_connected);
         break;
     }
     case SYSTEM_EVENT_AP_STADISCONNECTED:
-        this->onAPDisconnect(info.sta_disconnected);
+        this->onAPDisconnect(info.wifi_sta_disconnected);
         break;
 	  default:
     	dbgPrintln(EMMDBG_WIFI, 'Unhandled WiFi event: ' + event);
@@ -946,7 +946,7 @@ char * ESP8266MQTTMesh::md5(const uint8_t *msg, int len) {
     return out;
 }
 void ESP8266MQTTMesh::erase_sector() {
-    uint32_t start = freeSpaceStart / FLASH_SECTOR_SIZE;
+    uint32_t start = freeSpaceStart / SPI_FLASH_SEC_SIZE;
     //erase flash area here
     if (nextErase >= start) {
         ESP.flashEraseSector(nextErase--);
@@ -986,10 +986,10 @@ void ESP8266MQTTMesh::handle_ota(const char *cmd, const char *msg) {
             dbgPrintln(EMMDBG_MSG, "Not enough space for firmware: " + String(ota_info.len) + " > " + String(freeSpaceEnd - freeSpaceStart));
             return;
         }
-        uint32_t end = (freeSpaceStart + ota_info.len + FLASH_SECTOR_SIZE - 1) & (~(FLASH_SECTOR_SIZE - 1));
-        nextErase = end / FLASH_SECTOR_SIZE - 1;
+        uint32_t end = (freeSpaceStart + ota_info.len + SPI_FLASH_SEC_SIZE - 1) & (~(SPI_FLASH_SEC_SIZE - 1));
+        nextErase = end / SPI_FLASH_SEC_SIZE - 1;
         startTime = micros();
-        dbgPrintln(EMMDBG_OTA, "Erasing " + String((end - freeSpaceStart)/ FLASH_SECTOR_SIZE) + " sectors");
+        dbgPrintln(EMMDBG_OTA, "Erasing " + String((end - freeSpaceStart)/ SPI_FLASH_SEC_SIZE) + " sectors");
         schedule.once(0.0, erase_sector, this);
     }
     else if(0 == strcmp(cmd, "check")) {
@@ -1121,12 +1121,12 @@ void ESP8266MQTTMesh::onWifiDisconnect(const WiFiEventStationModeDisconnected& e
 //    dbgPrintln(EMMDBG_WIFI, "Failed to get DHCP info");
 //}
 
-void ESP8266MQTTMesh::onAPConnect(const WiFiEventSoftAPModeStationConnected& ip) {
-    dbgPrintln(EMMDBG_WIFI, "Got connection from Station " + mac_str((uint8_t*)ip.mac));
+void ESP8266MQTTMesh::onAPConnect(const WiFiEventSoftAPModeStationConnected& ev) {
+    dbgPrintln(EMMDBG_WIFI, "Got connection from Station " + mac_str((uint8_t*)ev.mac));
 }
 
-void ESP8266MQTTMesh::onAPDisconnect(const WiFiEventSoftAPModeStationDisconnected& ip) {
-    dbgPrintln(EMMDBG_WIFI, "Got disconnection from Station " + mac_str((uint8_t*)ip.mac));
+void ESP8266MQTTMesh::onAPDisconnect(const WiFiEventSoftAPModeStationDisconnected& ev) {
+    dbgPrintln(EMMDBG_WIFI, "Got disconnection from Station " + mac_str((uint8_t*)ev.mac));
 }
 
 void ESP8266MQTTMesh::onMqttConnect(bool sessionPresent) {

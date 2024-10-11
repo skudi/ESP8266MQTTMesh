@@ -53,9 +53,9 @@
   #include <ESP32Ticker.h>
   #define USE_WIFI_ONEVENT
   #include "WiFiCompat.h"
-	#include "SPIFFS.h"
-	#include <rom/rtc.h>
-	#define GETRESETREASON rtc_get_reset_reason(0)
+  #include "SPIFFS.h"
+  #include <rom/rtc.h>
+  #define GETRESETREASON rtc_get_reset_reason(0)
   
 #else
   #include <ESP8266WiFi.h>
@@ -67,7 +67,7 @@
 #include <AsyncMqttClient.h>
 #include <FS.h>
 #include <functional>
-//#include <string>
+#include <string>
 
 #define TOPIC_LEN 64
 
@@ -247,8 +247,8 @@ private:
     void onWifiConnect(const WiFiEventStationModeGotIP& event);
     void onWifiDisconnect(const WiFiEventStationModeDisconnected& event);
     //void onDHCPTimeout();
-    void onAPConnect(const WiFiEventSoftAPModeStationConnected& ip);
-    void onAPDisconnect(const WiFiEventSoftAPModeStationDisconnected& ip);
+    void onAPConnect(const WiFiEventSoftAPModeStationConnected& ev);
+    void onAPDisconnect(const WiFiEventSoftAPModeStationDisconnected& ev);
 
     void onMqttConnect(bool sessionPresent);
     void onMqttDisconnect(AsyncMqttClientDisconnectReason reason);
@@ -290,7 +290,7 @@ public:
 		String getActiveAPssid();
 		String getActiveAPpassword();
 #ifdef USE_WIFI_ONEVENT
-    void WiFiEventHandler(system_event_id_t event, system_event_info_t info);
+    void WiFiEventHandler(WiFiEvent_t event, WiFiEventInfo_t info);
 #endif
 };
 
