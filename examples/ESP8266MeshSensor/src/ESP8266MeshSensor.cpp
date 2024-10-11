@@ -118,7 +118,16 @@ void save_config();
 void callback(const char *topic, const char *msg);
 String build_json();
 
+void hw_wdt_disable(){
+  *((volatile uint32_t*) 0x60000900) &= ~(1); // Hardware WDT OFF
+}
+
+void hw_wdt_enable(){
+  *((volatile uint32_t*) 0x60000900) |= 1; // Hardware WDT ON
+}
+
 void setup() {
+    hw_wdt_disable();
     pinMode(STATUS_LED, OUTPUT);
     for (uint8_t i=0; i < RELAYNUM; i++){
         pinMode(relays[i].pin, OUTPUT);
