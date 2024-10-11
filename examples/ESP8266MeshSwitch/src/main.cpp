@@ -18,13 +18,6 @@
  */
 #include <Arduino.h>
 
-/* Sonoff POW w/ DS18B20 attached to GPIO2(SDA) */
-#define GREEN_LED   15 //MTDO
-
-#ifndef STATUS_LED
-#define STATUS_LED GREEN_LED
-#endif
-
 #ifndef MINHEARBEAT
 #define MINHEARBEAT 2000
 #endif
@@ -68,8 +61,7 @@ ButtonMode_t buttonMode = BUTTON0_MODE;
 volatile bool buttonState = false; //gpio IN button state
 volatile bool newButtonState = false; //gpio IN button state
 volatile bool stateChanged = false;
-int  heartbeat  = 60000;
-float temperature = 0.0;
+int  heartbeat  = 5000;
 
 void read_config();
 void save_config();
@@ -249,6 +241,7 @@ void save_config() {
         Serial.println("Failed to write config");
         return;
     }
+    f.print("FWID=" + String(FIRMWARE_ID) + "\n");
     for (uint8_t i=0; i < RELAYNUM; i++) {
         f.print("RELAY" + String(i) + "=" + (relays[i].state ? "1" : "0") + "\n");
     }
