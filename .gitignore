@@ -3,3 +3,5 @@ libraries
 .pioenvs
 .piolibdeps
 *.swp
+.pio
+.vscode
