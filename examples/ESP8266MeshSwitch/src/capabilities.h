@@ -8,7 +8,9 @@
 */
 #define RELAYSPECn(n) RELAYSPEC(RELAY ## n ## GPIO, !RELAY ## n ## ONVAL, 0)
 
-#ifdef RELAY0GPIO
+#if defined(RELAY1GPIO)
+#define RELAYSDEF { RELAYSPECn(0), RELAYSPECn(1) }
+#elif defined(RELAY0GPIO)
 #define RELAYSDEF { RELAYSPECn(0) }
 #endif
 

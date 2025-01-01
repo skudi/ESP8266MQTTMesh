@@ -201,6 +201,9 @@ String build_json() {
 void read_config() {
     File f = SPIFFS.open("/config", "r");
     if (! f) {
+        if (mesh.connected()) {
+            mesh.publish("error", "config file read");
+        }
         Serial.println("Failed to read config");
         return;
     }
